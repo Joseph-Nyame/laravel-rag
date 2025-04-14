@@ -15,7 +15,6 @@ abstract class AuthDTO
 {
     public function __construct(
         public readonly RegistrationType $registrationType,
-        public readonly ?string $name = null,
-        public readonly ?string $email = null
+       
     ) {}
 }

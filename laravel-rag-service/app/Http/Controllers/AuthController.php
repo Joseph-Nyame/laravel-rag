@@ -30,7 +30,7 @@ class AuthController extends Controller
             throw new ValidationException($validator);
         }
 
-        $dto = RegularAuthDTO::fromArray($validator->validated());
+        $dto = RegularAuthDTO::fromRequest($request);
         $response = $this->authService->register($dto);
 
         return response()->json($response, 201);
