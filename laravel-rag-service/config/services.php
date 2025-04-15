@@ -35,4 +35,11 @@ return [
         ],
     ],
 
+    'chromadb' => [
+    'host' => env('CHROMADB_HOST', 'http://localhost:8003'),
+    ],
+    'qdrant' => [
+        'host' => env('VECTORDB_HOST', 'http://localhost:6333'),
+    ],
+
 ];
