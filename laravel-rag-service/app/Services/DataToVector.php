@@ -17,7 +17,7 @@ class DataToVector
     public function __construct()
     {
         $this->vectorDbUrl = config('services.qdrant.host');
-        $this->client = OpenAI::client('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');
+        $this->client = OpenAI::client(env('OPENAI_API_KEY'));
 
     }
 
