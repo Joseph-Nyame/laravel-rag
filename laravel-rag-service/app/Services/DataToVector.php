@@ -26,7 +26,7 @@ class DataToVector
         try {
             $dataItems = $this->parseFile($file);
             if (empty($dataItems)) {
-                throw new \Exception('No data extracted from file.');
+                Log::info('messaage',['No data extracted from file.']);
             }
 
             $points = [];
@@ -39,6 +39,7 @@ class DataToVector
                     'input' => $text,
                 ]);
 
+               
                 $points[] = [
                     'id' => $id,
                     'vector' => $response->embeddings[0]->embedding,
@@ -56,7 +57,7 @@ class DataToVector
             ]);
 
             if ($response->failed()) {
-                throw new \Exception('Failed to add items: ' . $response->body());
+                Log::info('Failed to add items: ' ,[$response->body()]);
             }
 
             return count($dataItems);
