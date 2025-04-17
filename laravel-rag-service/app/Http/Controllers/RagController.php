@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Agent;
 use App\Services\DataToVector;
-use App\Services\RAGService;
+use App\Services\RagService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -13,7 +13,7 @@ use Illuminate\Validation\ValidationException;
 class RagController extends Controller
 {
     protected DataToVector $dataToVector;
-    protected RAGService $ragService;
+    protected RagService $ragService;
 
     public function __construct(DataToVector $dataToVector, RAGService $ragService)
     {
@@ -24,7 +24,7 @@ class RagController extends Controller
     public function ingest(Request $request, $agent_id): JsonResponse
     {
         $request->validate([
-            'file' => ['required', 'file', 'mimes:csv,txt,sql,xlsx,xls,json', 'max:10240'],
+            'file' => ['required', 'file', 'mimes:csv,txt,sql,json', 'max:10240'],
         ]);
 
         $agent = Agent::where('id', $agent_id)

@@ -3,11 +3,11 @@
 namespace App\Services;
 
 use App\Models\Agent;
-use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
-use OpenAI\Laravel\Facades\OpenAI;
 use Illuminate\Support\Str;
+use Illuminate\Http\UploadedFile;
+use OpenAI;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Http;
 
 class DataToVector
 {
@@ -34,7 +34,7 @@ class DataToVector
                 $id = "item_{$agent->id}_{$index}_" . Str::random(8);
                 $text = is_array($item) ? json_encode($item) : $item;
 
-                $response = OpenAI::embeddings()->create([
+                $response = $this->client->embeddings()->create([
                     'model' => 'text-embedding-3-small',
                     'input' => $text,
                 ]);

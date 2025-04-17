@@ -4,9 +4,9 @@ namespace App\Services;
 
 use App\Models\Agent;
 use Illuminate\Support\Facades\Http;
-use OpenAI\Laravel\Facades\OpenAI;
+use OpenAI;
 
-class RAGService
+class RagService
 {
     protected string $vectorDbUrl;
 
