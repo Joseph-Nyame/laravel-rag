@@ -46,7 +46,7 @@ class RagController extends Controller
     public function query(Request $request, $agent_id): JsonResponse
     {
         $request->validate([
-            'query' => ['required', 'string', 'max:1000'],
+            'prompt' => ['required', 'string', 'max:1000'],
             'session_id' => ['sometimes', 'string', 'max:255'],
         ]);
 
@@ -65,7 +65,7 @@ class RagController extends Controller
             // Process query with history
             $response = $this->ragService->chat(
                 agent: $agent,
-                query: (string)$request->query,
+                query: $request->prompt,
                 conversationHistory: $conversationHistory
             );
 
