@@ -2,9 +2,10 @@
 
 namespace App\Services;
 
-use App\Models\Agent;
-use Illuminate\Support\Facades\Http;
 use OpenAI;
+use App\Models\Agent;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Http;
 
 class RagService
 {
@@ -32,7 +33,7 @@ EOT;
     {
         // Retrieve relevant context from Qdrant
         $context = $this->vectorQuerySearch($agent, $query);
-
+           Log::info('message',[$context]);
         // Generate response using OpenAI
         $messages = $this->buildMessages($query, $context, $conversationHistory);
 
@@ -95,7 +96,7 @@ EOT;
     private function vectorQuerySearch(Agent $agent, string $query): array
     {
         $queryVector = $this->getEmbeddings($query);
-
+        Log::info('message',[$queryVector]);
         $response = Http::post("{$this->vectorDbUrl}/collections/{$agent->vector_collection}/points/search", [
             'vector' => $queryVector,
             'limit' => 5,

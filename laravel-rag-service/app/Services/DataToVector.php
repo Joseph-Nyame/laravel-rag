@@ -31,7 +31,7 @@ class DataToVector
 
             $points = [];
             foreach ($dataItems as $index => $item) {
-                $id = "item_{$agent->id}_{$index}_" . Str::random(8);
+                $id =   $id = (string) Str::uuid(); 
                 $text = is_array($item) ? json_encode($item) : $item;
 
                 $response = $this->client->embeddings()->create([
@@ -49,13 +49,15 @@ class DataToVector
                         'original_filename' => $file->getClientOriginalName(),
                     ], is_array($item) ? $item : ['content' => $text]),
                 ];
-            }
+            } 
+          
 
             // Batch upsert to Qdrant
             $response = Http::put("{$this->vectorDbUrl}/collections/{$agent->vector_collection}/points?wait=true", [
                 'points' => $points,
             ]);
 
+            Log::info('response from qrdrant',[$response]);
             if ($response->failed()) {
                 Log::info('Failed to add items: ' ,[$response->body()]);
             }
