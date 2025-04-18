@@ -10,32 +10,28 @@ use Illuminate\Support\Facades\Http;
 class RagService
 {
     protected string $vectorDbUrl;
-
     private array $messages = [];
-
     protected $client;
+    protected PromptManager $promptManager;
 
-    private string $systemPrompt = <<<'EOT'
-You are an AI assistant specialized in answering questions based on user-uploaded data. The provided context is a subset of the full dataset, retrieved via semantic search, and may not include all relevant information.
-Context: {context}
-Answer the question accurately based on the context provided. For questions asking "how many" or requiring counts, provide an approximate count of relevant items in the context (e.g., "over X males" for "how many males") and state that the number is partial due to the dataset subset. Avoid giving exact counts, as the context may not capture all matches. If the context lacks relevant information, say so clearly.
-EOT;
-
-    public function __construct()
+    public function __construct(PromptManager $promptManager)
     {
         $this->vectorDbUrl = config('services.qdrant.host');
         $this->client = OpenAI::client(env('OPENAI_API_KEY'));
-
-
+        $this->promptManager = $promptManager;
     }
 
     public function chat(Agent $agent, string $query, array $conversationHistory = []): array
     {
-        // Retrieve relevant context from Qdrant
-        $context = $this->vectorQuerySearch($agent, $query);
-        //    Log::info('message',[$context]);
-        // Generate response using OpenAI
-        $messages = $this->buildMessages($query, $context, $conversationHistory);
+        $scenario = $this->promptManager->detectScenario($query);
+        $isComplete = in_array($scenario, ['count', 'list']);
+        $context = $this->queryData($agent, $query, $scenario);
+
+        Log::info('Retrieved context', ['scenario' => $scenario, 'context' => $context]);
+
+        $prompt = $this->promptManager->getPrompt($query, $context, $isComplete);
+
+        $messages = $this->buildMessages($query, $prompt, $conversationHistory);
 
         $response = $this->client->chat()->create([
             'model' => 'gpt-4o-mini',
@@ -50,30 +46,25 @@ EOT;
         ];
     }
 
-    private function buildMessages(string $query, array $context, array $history): array
+    private function buildMessages(string $query, string $prompt, array $history): array
     {
-        // Reset messages
         $this->messages = [];
-
-        // System prompt with context
         $this->messages[] = [
             'role' => 'system',
-            'content' => str_replace('{context}', json_encode($context), $this->systemPrompt),
+            'content' => $prompt,
         ];
-
-        // Conversation history
         foreach ($history as $message) {
             $this->messages[] = [
                 'role' => $message['role'],
                 'content' => $message['content'],
             ];
         }
-
-        // Current query
         $this->messages[] = [
             'role' => 'user',
             'content' => $query,
         ];
+
+        Log::info('Messages sent to OpenAI', ['messages' => $this->messages]);
 
         return $this->messages;
     }
@@ -93,22 +84,99 @@ EOT;
         return $response->embeddings[0]->embedding;
     }
 
+    private function queryData(Agent $agent, string $query, string $scenario): array
+    {
+        if (in_array($scenario, ['count', 'list'])) {
+            return $this->scrollQuerySearch($agent, $query);
+        }
+        return $this->vectorQuerySearch($agent, $query);
+    }
+
     private function vectorQuerySearch(Agent $agent, string $query): array
     {
         $queryVector = $this->getEmbeddings($query);
-        // Log::info('message',[$queryVector]);
-        $response = Http::post("{$this->vectorDbUrl}/collections/{$agent->vector_collection}/points/search", [
-            'vector' => $queryVector,
-            'limit' => 100,
-            'with_payload' => true,
-        ]);
-        Log::info('response',[$response]);
+        Log::info('Query vector', ['vector' => $queryVector]);
+
+        $headers = ['Content-Type' => 'application/json'];
+        if ($apiKey = config('services.qdrant.api_key')) {
+            $headers['api-key'] = $apiKey;
+        }
+
+        $response = Http::withHeaders($headers)->post(
+            "{$this->vectorDbUrl}/collections/{$agent->vector_collection}/points/search",
+            [
+                'vector' => $queryVector,
+                'limit' => 100,
+                'with_payload' => true,
+            ]
+        );
 
         if ($response->failed()) {
+            Log::error('Vector search failed', ['error' => $response->body()]);
             throw new \Exception('Vector search failed: ' . $response->body());
         }
 
-        $results = $response->json()['result'];
+        $results = $response->json()['result'] ?? [];
+
+        return collect($results)->map(function ($result) {
+            return $result['payload'];
+        })->toArray();
+    }
+
+    private function scrollQuerySearch(Agent $agent, string $query): array
+    {
+        $headers = ['Content-Type' => 'application/json'];
+        if ($apiKey = config('services.qdrant.api_key')) {
+            $headers['api-key'] = $apiKey;
+        }
+
+        $filter = null;
+        if (preg_match('/how many\s+(males|females)/i', $query, $matches)) {
+            $gender = strtolower($matches[1]) === 'males' ? 'male' : 'female';
+            $filter = [
+                'must' => [
+                    [
+                        'key' => 'gender',
+                        'match' => ['value' => $gender],
+                    ],
+                ],
+            ];
+        } elseif (preg_match('/\b(list|show all)\s+.*(admins|users)/i', $query, $matches)) {
+            $role = strtolower($matches[2]) === 'admins' ? 'admin' : 'user';
+            $filter = [
+                'must' => [
+                    [
+                        'key' => 'role',
+                        'match' => ['value' => $role],
+                    ],
+                ],
+            ];
+        } elseif (preg_match('/(how many|count|number of)\s+(males|females)\s+.*(admins|users)/i', $query, $matches)) {
+            $gender = strtolower($matches[2]) === 'males' ? 'male' : 'female';
+            $role = strtolower($matches[3]) === 'admins' ? 'admin' : 'user';
+            $filter = [
+                'must' => [
+                    ['key' => 'gender', 'match' => ['value' => $gender]],
+                    ['key' => 'role', 'match' => ['value' => $role]],
+                ],
+            ];
+        }
+
+        $response = Http::withHeaders($headers)->post(
+            "{$this->vectorDbUrl}/collections/{$agent->vector_collection}/points/scroll",
+            [
+                'filter' => $filter,
+                'limit' => 300,
+                'with_payload' => true,
+            ]
+        );
+
+        if ($response->failed()) {
+            Log::error('Scroll search failed', ['error' => $response->body()]);
+            throw new \Exception('Scroll search failed: ' . $response->body());
+        }
+
+        $results = $response->json()['result']['points'] ?? [];
 
         return collect($results)->map(function ($result) {
             return $result['payload'];

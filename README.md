@@ -38,7 +38,7 @@ Tech Stack
 
     Laravel: Backend framework for robust API and service management.
     Qdrant: Vector database for efficient storage and retrieval of embeddings.
-    mkdir qdrant_storage
-    docker run -p 6333:6333 -v $(pwd)/qdrant_storage:/qdrant/storage qdrant/qdrant
+    //mkdir qdrant_storage
+   // docker run -p 6333:6333 -v $(pwd)/qdrant_storage:/qdrant/storage qdrant/qdrant
     Laravel OpenAI Package: Integration with OpenAI for natural language processing and generation.
     Database Synchronization: Custom logic to align user's app database with the vector database.
