@@ -16,9 +16,9 @@ class RagService
     protected $client;
 
     private string $systemPrompt = <<<'EOT'
-You are an AI assistant specialized in answering questions based on user-uploaded data. Use the following context to provide accurate responses.
+You are an AI assistant specialized in answering questions based on user-uploaded data. The provided context is a subset of the full dataset, retrieved via semantic search, and may not include all relevant information.
 Context: {context}
-Answer the question based on the context provided. If the context doesn't contain relevant information, say so clearly.
+Answer the question accurately based on the context provided. For questions asking "how many" or requiring counts, provide an approximate count of relevant items in the context (e.g., "over X males" for "how many males") and state that the number is partial due to the dataset subset. Avoid giving exact counts, as the context may not capture all matches. If the context lacks relevant information, say so clearly.
 EOT;
 
     public function __construct()
@@ -33,7 +33,7 @@ EOT;
     {
         // Retrieve relevant context from Qdrant
         $context = $this->vectorQuerySearch($agent, $query);
-           Log::info('message',[$context]);
+        //    Log::info('message',[$context]);
         // Generate response using OpenAI
         $messages = $this->buildMessages($query, $context, $conversationHistory);
 
@@ -96,12 +96,13 @@ EOT;
     private function vectorQuerySearch(Agent $agent, string $query): array
     {
         $queryVector = $this->getEmbeddings($query);
-        Log::info('message',[$queryVector]);
+        // Log::info('message',[$queryVector]);
         $response = Http::post("{$this->vectorDbUrl}/collections/{$agent->vector_collection}/points/search", [
             'vector' => $queryVector,
-            'limit' => 5,
+            'limit' => 100,
             'with_payload' => true,
         ]);
+        Log::info('response',[$response]);
 
         if ($response->failed()) {
             throw new \Exception('Vector search failed: ' . $response->body());

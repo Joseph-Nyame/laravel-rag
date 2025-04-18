@@ -79,8 +79,8 @@ class RagController extends Controller
             return response()->json([
                 'messages' => $this->ragService->getMessages(),
                 'current_response' => $response['response'],
-                'context' => $response['context'],
-                'session_id' => $sessionId,
+                // 'context' => $response['context'],
+                // 'session_id' => $sessionId,
             ]);
         } catch (\Exception $e) {
             throw ValidationException::withMessages([
