@@ -2,7 +2,7 @@
 Laravel RAG Service is a Software-as-a-Service (SaaS) package designed to seamlessly integrate intelligent, Retrieval-Augmented Generation (RAG) capabilities into your Laravel applications. By providing a simple API, this service allows developers to feed data, query it with natural language, perform actionable commands, and gain insights through trends and system analysis—all without managing complex embeddings or vector searches. Built for scalability and ease of use, it abstracts the heavy lifting so you can focus on enhancing your app with AI-driven features.
 Overview
 
-The Laravel RAG Service empowers developers to add advanced AI functionalities to their applications through a lightweight, customizable package. It leverages ChromaDB for efficient vector storage and the Laravel OpenAI package for natural language processing, delivering a plug-and-play solution for modern apps. Whether you're building a CRM, documentation platform, or e-commerce system, this service makes it easy to ingest data, query it intelligently, manage it dynamically, and derive actionable insights.
+The Laravel RAG Service empowers developers to add advanced AI functionalities to their applications through a lightweight, customizable package. It leverages Qdrant for efficient vector storage and the Laravel OpenAI package for natural language processing, delivering a plug-and-play solution for modern apps. Whether you're building a CRM, documentation platform, or e-commerce system, this service makes it easy to ingest data, query it intelligently, manage it dynamically, and derive actionable insights.
 Project Stages
 
 The development of Laravel RAG Service is planned in three stages, each adding powerful capabilities:
@@ -11,7 +11,7 @@ The development of Laravel RAG Service is planned in three stages, each adding p
         Core functionality to ingest data via API and answer natural language queries with context-aware responses.
         Example: Upload product manuals and ask, "How do I fix error 403?" to get precise answers.
     Actionable Commands and Synchronization
-        Perform CRUD (Create, Read, Update, Delete) operations directly in the vector database (ChromaDB).
+        Perform CRUD (Create, Read, Update, Delete) operations directly in the vector database (Qdrant).
         Periodic synchronization between your application’s default database and the vector database to ensure data consistency.
         Example: Update a document in your app’s database, and the vector database automatically reflects the change.
     Trends, Recommendations, and System Analysis
@@ -37,6 +37,8 @@ Use Cases
 Tech Stack
 
     Laravel: Backend framework for robust API and service management.
-    ChromaDB: Vector database for efficient storage and retrieval of embeddings.
+    Qdrant: Vector database for efficient storage and retrieval of embeddings.
+    //mkdir qdrant_storage
+   // docker run -p 6333:6333 -v $(pwd)/qdrant_storage:/qdrant/storage qdrant/qdrant
     Laravel OpenAI Package: Integration with OpenAI for natural language processing and generation.
-    Database Synchronization: Custom logic to align your app’s database with the vector database.
+    Database Synchronization: Custom logic to align user's app database with the vector database.
