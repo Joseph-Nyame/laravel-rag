@@ -43,4 +43,8 @@ return [
         'api_key' => env('QDRANT_API_KEY'),
     ],
 
+    'openai' => [
+        'max_tokens' => env('OPENAI_MAX_TOKENS', 8192),
+    ],
+
 ];
