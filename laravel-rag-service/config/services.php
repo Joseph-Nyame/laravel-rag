@@ -43,4 +43,9 @@ return [
         'api_key' => env('QDRANT_API_KEY'),
     ],
 
+    'openai' => [
+        'max_tokens' => env('OPENAI_MAX_TOKENS', 8192),
+        'batch_size' => env('OPENAI_BATCH_SIZE', 3)
+    ],
+
 ];
