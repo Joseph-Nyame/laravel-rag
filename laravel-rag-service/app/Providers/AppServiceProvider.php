@@ -4,7 +4,9 @@ namespace App\Providers;
 
 use App\Services\RagService;
 use App\Services\PromptManager;
+use App\Repositories\QdrantRepository;
 use Illuminate\Support\ServiceProvider;
+use App\Repositories\Interfaces\QdrantRepositoryInterface;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -20,6 +22,9 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(RagService::class, function ($app) {
             return new RagService($app->make(PromptManager::class));
         });
+
+        $this->app->bind(QdrantRepositoryInterface::class, QdrantRepository::class);
+
     }
 
     /**
