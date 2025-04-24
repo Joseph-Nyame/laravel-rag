@@ -19,11 +19,7 @@ class PointService
 
     public function createPoints(Agent $agent, UploadedFile $file, array $items): array
     {
-        $points = [];
-        foreach ($items as $item) {
-            $points[] = $this->vectorService->createPoint($agent, $file, $item);
-        }
-        return $points;
+        return $this->vectorService->createPoint($agent, $file, $items);
     }
 
     public function upsertPoints(Agent $agent, array $points): bool

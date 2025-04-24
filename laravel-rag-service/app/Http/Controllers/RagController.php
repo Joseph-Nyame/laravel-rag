@@ -2,12 +2,17 @@
 
 namespace App\Http\Controllers;
 
+use Exception;
 use App\Models\Agent;
-use App\Services\DataToVector;
+use App\Jobs\IngestFileJob;
+use Illuminate\Support\Str;
 use App\Services\RagService;
-use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use App\Services\DataToVector;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 
 class RagController extends Controller
@@ -32,17 +37,40 @@ class RagController extends Controller
             ->firstOrFail();
 
         try {
-            $count = $this->dataToVector->ingest($agent, $request->file('file'));
+                $file = $request->file('file');
+                $path = Storage::putFile('uploads', $file);
+                $fullPath = Storage::path($path);
+                $jobId = (string) Str::uuid();
+    
+                IngestFileJob::dispatch(
+                    $agent,
+                    $fullPath,
+                    $file->getClientOriginalName()
+                );
+
+                // $this->dataToVector->ingest($agent, $file);
+    
+
+            Log::info("Ingestion job dispatched", [
+                'agent_id' => $agent->id,
+                'file' => $file->getClientOriginalName(),
+                // 'job_id' => $jobId,
+            ]);
+
             return response()->json([
-                'message' => "Ingested {$count} items for agent {$agent->name}",
-            ], 201);
-        } catch (\Exception $e) {
+                'message' => "File is processing for agent {$agent->name}",
+                // 'job_id' => $jobId,
+            ], 202);
+        } catch (Exception $e) {
+            // Log::error("Ingestion dispatch failed: {$e->getMessage()}", [
+            //     'agent_id' => $agent->id,
+            //     'file' => $file->getClientOriginalName(),
+            // ]);
             throw ValidationException::withMessages([
-                'file' => 'Failed to process file: ' . $e->getMessage(),
+                'file' => 'Failed to dispatch ingestion: ' . $e->getMessage(),
             ]);
         }
     }
-
     public function query(Request $request, $agent_id): JsonResponse
     {
         $request->validate([
@@ -82,7 +110,7 @@ class RagController extends Controller
                 // 'context' => $response['context'],
                 // 'session_id' => $sessionId,
             ]);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             throw ValidationException::withMessages([
                 'query' => 'Failed to process query: ' . $e->getMessage(),
             ]);

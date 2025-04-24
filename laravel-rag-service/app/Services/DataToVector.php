@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Agent;
+use App\Jobs\FileProcessorJob;
 use App\Services\PointService;
 use App\Services\FileProcessor;
 use Illuminate\Http\UploadedFile;
@@ -22,6 +23,7 @@ class DataToVector
     public function ingest(Agent $agent, UploadedFile $file): int
     {
         try {
+          
             $dataItems = $this->fileProcessor->processFile($file);
             if (empty($dataItems)) {
                 Log::info('No data extracted from file', ['file' => $file->getClientOriginalName()]);

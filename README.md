@@ -41,4 +41,4 @@ Tech Stack
     //mkdir qdrant_storage
    // docker run -p 6333:6333 -v $(pwd)/qdrant_storage:/qdrant/storage qdrant/qdrant
     Laravel OpenAI Package: Integration with OpenAI for natural language processing and generation.
-    Database Synchronization: Custom logic to align user's app database with the vector database.
+    
