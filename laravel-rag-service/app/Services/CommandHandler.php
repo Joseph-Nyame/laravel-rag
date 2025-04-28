@@ -39,10 +39,9 @@ class CommandHandler
             }
 
             // Auto-generate fields for create_entity based on specifics
-            $schema = $structure->schema;
-            $specifics = $schema['specifics'] ?? [];
-            $requiredFields = $schema['required'] ?? [];
             if (strpos($intent, 'create_') === 0) {
+                $specifics = $structure->schema['specifics'] ?? [];
+                $requiredFields = $structure->schema['required'] ?? [];
                 $collectionName = $agent->vector_collection;
                 $data = $this->specificsHandler->generateFields(
                     $specifics,
@@ -54,8 +53,10 @@ class CommandHandler
             }
 
             // Validate data against structure schema
-            foreach ($requiredFields as $field) {
-                // Skip validation for manual fields, as they'll be generated or not needed for queries
+            $schema = $structure->schema;
+            $specifics = $schema['specifics'] ?? [];
+            foreach ($schema['required'] ?? [] as $field) {
+                // Skip validation for manual fields, as they'll be generated
                 if (isset($specifics[$field]['manual']) && $specifics[$field]['manual']) {
                     continue;
                 }
@@ -65,14 +66,14 @@ class CommandHandler
             }
 
             foreach ($data as $key => $value) {
-                if (!in_array($key, $requiredFields) && !in_array($key, $schema['optional'] ?? [])) {
+                if (!in_array($key, $schema['required'] ?? []) && !in_array($key, $schema['optional'] ?? [])) {
                     throw new \Exception("Invalid field: $key");
                 }
             }
 
             // Dispatch job
             $jobId = (string) Str::uuid();
-            ProcessCommandJob::dispatch($intent, $data, $agent)->onQueue('commands');
+            ProcessCommandJob::dispatch($intent, $data, $agent);
 
             // Generate feedback
             $entity = explode('_', $intent)[1] ?? 'entity';

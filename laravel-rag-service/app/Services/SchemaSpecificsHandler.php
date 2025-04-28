@@ -12,8 +12,9 @@ use App\Repositories\QdrantRepository;
 class SchemaSpecificsHandler
 {
     protected $client;
-    protected $supportedTypes = ['uuid', 'incremental', 'timestamp'];
+    protected $supportedTypes = ['uuid', 'incremental', 'timestamp', 'number'];
     protected $generators;
+    protected $metadataFields = ['file_type', 'original_filename'];
 
     public function __construct(
         public QdrantRepository $qdrantRepository
@@ -36,17 +37,15 @@ class SchemaSpecificsHandler
         $data = $existingData;
 
         foreach ($specifics as $field => $spec) {
-            if (isset($data[$field])) {
-                continue; // Skip user-provided fields
+            if (isset($data[$field]) || in_array($field, $this->metadataFields)) {
+                continue; // Skip user-provided fields and metadata
             }
 
-            $type = $spec['type'] ?? $spec;
+            $type = $spec['type'] ?? 'string';
             $generatorType = $spec['generator_type'] ?? $type;
-            $example = $spec['example'] ?? null;
             $isManual = $spec['manual'] ?? false;
 
-            // Handle supported types
-            if ($isManual && in_array($type, ['uuid', 'incremental', 'timestamp', 'number'])) {
+            if ($isManual && in_array($type, $this->supportedTypes)) {
                 switch ($type) {
                     case 'uuid':
                         $data[$field] = (string) Str::uuid();
@@ -69,6 +68,8 @@ class SchemaSpecificsHandler
                     case 'number':
                         if ($field === 'agent_id') {
                             $data[$field] = (int) $agentId;
+                        } else {
+                            $data[$field] = mt_rand(1, 1000);
                         }
                         break;
                 }
@@ -77,13 +78,11 @@ class SchemaSpecificsHandler
                     case 'timestamp':
                         $data[$field] = now()->toIso8601String();
                         break;
+                    case 'enum':
+                        $options = explode(',', $spec['enum_values'] ?? '');
+                        $data[$field] = !empty($options) ? $options[array_rand($options)] : Str::random(8);
+                        break;
                     default:
-                        if (strpos($type, 'enum:') === 0) {
-                            $options = explode(',', substr($type, 5));
-                            $data[$field] = $options[array_rand($options)];
-                            break;
-                        }
-
                         if (isset($this->generators[$generatorType])) {
                             $data[$field] = ($this->generators[$generatorType])();
                         } else {
@@ -129,7 +128,6 @@ class SchemaSpecificsHandler
                     ],
                 ]);
 
-                // Clean response to remove Markdown
                 $content = trim($response->choices[0]->message->content);
                 $content = preg_replace('/^```json\n|\n```$/m', '', $content);
                 $content = trim($content);

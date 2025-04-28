@@ -49,13 +49,13 @@ class AgentQueryController extends Controller
 
         try {
             // Identify intent
-            $agentContext = $agent->name . ' Agent';
-            $intent = $this->intentClass->identify($request->prompt, $agentContext);
-            $intent = trim($intent, '"\'');
-            
-            if ($intent === 'rag_query' || strpos($intent, 'read_') === 0) {
-                // Handle RAG query or read_entity
-                Log::info('Routing to RagService', ['intent' => $intent, 'prompt' => $request->prompt]);
+            // $agentContext = $agent->name . ' Agent';
+            // $intent = $this->intentClass->identify($request->prompt, $agentContext);
+            // $intent = trim($intent, '"\'');
+            //todo but with crud. check later
+            // if ($intent === 'rag_query' || strpos($intent, 'read_') === 0) {
+            //     // Handle RAG query or read_entity
+                // Log::info('Routing to RagService', ['intent' => $intent, 'prompt' => $request->prompt]);
                 $response = $this->ragService->chat(
                     agent: $agent,
                     query: $request->prompt,
@@ -63,14 +63,14 @@ class AgentQueryController extends Controller
                 );
 
                 $currentResponse = $response['response'];
-            } 
-            else {
-                // Handle CRUD command (create, update, delete)
-                // return response()->json($intent);
-                Log::info('Routing to CommandHandler', ['intent' => $intent, 'prompt' => $request->prompt]);
-                $response = $this->commandHandler->handle($request->prompt, $agent);
-                $currentResponse = $response['message'];
-            }
+            // } 
+            // else {
+            //     // Handle CRUD command (create, update, delete)
+            //     // return response()->json($intent);
+            //     Log::info('Routing to CommandHandler', ['intent' => $intent, 'prompt' => $request->prompt]);
+            //     $response = $this->commandHandler->handle($request->prompt, $agent);
+            //     $currentResponse = $response['message'];
+            // }
 
             // Update conversation history
             $conversationHistory[] = ['role' => 'user', 'content' => $request->prompt];

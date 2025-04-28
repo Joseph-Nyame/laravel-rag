@@ -3,22 +3,22 @@
 namespace App\Jobs;
 
 use App\Models\Agent;
-use App\Services\DataToVector;
-use App\Services\PointService;
-use Illuminate\Bus\Queueable;
+use App\Repositories\QdrantRepository;
 use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Foundation\Bus\Dispatchable;
-use Illuminate\Queue\InteractsWithQueue;
-use Illuminate\Queue\SerializesModels;
+use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 class ProcessCommandJob implements ShouldQueue
 {
-    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+    use Queueable;
 
     protected $intent;
     protected $data;
     protected $agent;
+
+    public $tries = 3;
+    public $timeout = 120;
 
     public function __construct(string $intent, array $data, Agent $agent)
     {
@@ -27,88 +27,103 @@ class ProcessCommandJob implements ShouldQueue
         $this->agent = $agent;
     }
 
-    public function handle(DataToVector $dataToVector, PointService $pointService)
+    public function handle(QdrantRepository $qdrantRepository): void
     {
         try {
-            $parts = explode('_', $this->intent);
-            $action = $parts[0] ?? 'action';
-            $entity = $parts[1] ?? 'entity';
+            $collectionName = $this->agent->vector_collection;
+            $entity = explode('_', $this->intent)[1] ?? 'entity';
+            $action = explode('_', $this->intent)[0] ?? 'action';
+
+            Log::info('Processing command job', [
+                'intent' => $this->intent,
+                'agent_id' => $this->agent->id,
+                'data' => $this->data,
+            ]);
 
             if ($action === 'create') {
-                // Create temporary CSV with dynamic headers
-                $headers = array_keys($this->data);
-                $values = array_map('strval', array_values($this->data));
-                $file = new \Illuminate\Http\UploadedFile(
-                    storage_path('app/private/temp.csv'),
-                    'temp.csv',
-                    'text/csv',
-                    null,
-                    true
-                );
-                $csvContent = implode(',', $headers) . "\n" . implode(',', $values);
-                file_put_contents($file->getPathname(), $csvContent);
-
-                $dataToVector->ingest($this->agent, $file);
-                unlink($file->getPathname());
-
+                $pointId = (string) Str::uuid();
+                $payload = $this->data;
+                $payload['agent_id'] = (int) $this->agent->id; // Ensure correct agent_id
+                $qdrantRepository->insertPoint($collectionName, $pointId, $payload);
                 Log::info(ucfirst($entity) . ' point inserted', [
                     'intent' => $this->intent,
                     'agent_id' => $this->agent->id,
-                    'data' => $this->data,
+                    'point_id' => $pointId,
+                    'data' => $payload,
                 ]);
             } elseif ($action === 'read') {
-                
-                Log::info(ucfirst($entity) . ' read intent handled by RAG', [
+                $filters = [
+                    'must' => [
+                        ['key' => 'agent_id', 'match' => ['value' => (int) $this->agent->id]],
+                    ],
+                ];
+                if (isset($this->data['name'])) {
+                    $filters['must'][] = [
+                        'key' => 'name',
+                        'match' => ['value' => $this->data['name']],
+                    ];
+                }
+                if (isset($this->data['branch_id'])) {
+                    $branchId = is_numeric($this->data['branch_id']) ? (int) $this->data['branch_id'] : (string) $this->data['branch_id'];
+                    $filters['must'][] = [
+                        'key' => 'branch_id',
+                        'match' => ['value' => $branchId],
+                    ];
+                }
+
+                Log::debug('Executing Qdrant search', [
+                    'collection' => $collectionName,
+                    'filters' => $filters,
+                ]);
+
+                $points = $qdrantRepository->searchPoints($collectionName, $filters, 10);
+                if (empty($points)) {
+                    Log::warning(ucfirst($entity) . ' not found', [
+                        'intent' => $this->intent,
+                        'agent_id' => $this->agent->id,
+                        'filters' => $filters,
+                        'collection' => $collectionName,
+                    ]);
+                    throw new \Exception('No ' . $entity . 's found matching the criteria.');
+                }
+
+                Log::info(ucfirst($entity) . ' retrieved', [
                     'intent' => $this->intent,
                     'agent_id' => $this->agent->id,
+                    'points' => $points,
                 ]);
             } elseif ($action === 'update') {
                 if (!isset($this->data['id'])) {
                     throw new \Exception('ID required for update');
                 }
                 $pointId = $this->data['id'];
-                unset($this->data['id']); // Remove id from payload
-                $file = new \Illuminate\Http\UploadedFile(
-                    storage_path('app/private/temp.csv'),
-                    'temp.csv',
-                    'text/csv',
-                    null,
-                    true
-                );
-                $headers = array_keys($this->data);
-                $values = array_map('strval', array_values($this->data));
-                $csvContent = implode(',', $headers) . "\n" . implode(',', $values);
-                file_put_contents($file->getPathname(), $csvContent);
-
-                $points = $pointService->createPoints($this->agent, $file, [$this->data]);
-                $points[0]['id'] = $pointId; // Reuse existing ID
-                $pointService->upsertPoints($this->agent, [$points[0]]);
-                unlink($file->getPathname());
-
+                $payload = $this->data;
+                unset($payload['id']);
+                $payload['agent_id'] = (int) $this->agent->id;
+                $point = [
+                    'id' => $pointId,
+                    'payload' => $payload,
+                ];
+                $qdrantRepository->upsertPoints($collectionName, [$point]);
                 Log::info(ucfirst($entity) . ' point updated', [
                     'intent' => $this->intent,
                     'agent_id' => $this->agent->id,
                     'point_id' => $pointId,
-                    'data' => $this->data,
+                    'data' => $payload,
                 ]);
             } elseif ($action === 'delete') {
                 if (!isset($this->data['id'])) {
-                    throw new \Exception('ID required for delete');
+                    throw new \Exception('ID required for update');
                 }
                 $pointId = $this->data['id'];
-                $pointService->deletePoint($this->agent, $pointId);
-
+                $qdrantRepository->deletePoint($collectionName, $pointId);
                 Log::info(ucfirst($entity) . ' point deleted', [
                     'intent' => $this->intent,
                     'agent_id' => $this->agent->id,
                     'point_id' => $pointId,
                 ]);
             } else {
-                Log::info(ucfirst($action) . ' intent not implemented', [
-                    'intent' => $this->intent,
-                    'agent_id' => $this->agent->id,
-                    'entity' => $entity,
-                ]);
+                throw new \Exception("Unsupported intent: {$this->intent}");
             }
         } catch (\Exception $e) {
             Log::error(ucfirst($entity) . ' command job failed', [
@@ -116,7 +131,7 @@ class ProcessCommandJob implements ShouldQueue
                 'agent_id' => $this->agent->id,
                 'error' => $e->getMessage(),
             ]);
-            $this->fail($e);
+            throw $e;
         }
     }
 }

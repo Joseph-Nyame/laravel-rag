@@ -1,6 +1,5 @@
 <?php
 
-
 namespace App\Services;
 
 use Illuminate\Support\Facades\Cache;
@@ -21,11 +20,14 @@ class IntentClass
         try {
             $cacheKey = 'intent_identification_' . md5($command . $agentContext);
             return Cache::remember($cacheKey, now()->addHours(1), function () use ($command, $agentContext) {
-                $prompt = "Identify the intent of the command: '$command' for a $agentContext. Return the intent as a string. " .
-                          "If it's a CRUD action, use 'action_entity' format (e.g., 'create_product', 'read_product', 'update_order', 'delete_product'), " .
-                          "where 'action' is 'create', 'read', 'update', or 'delete', and 'entity' is the target (e.g., 'product', 'order'). " .
-                          "Use 'read_entity' for specific retrieval requests (e.g., 'Show product with id 1' → 'read_product'). " .
-                          "If it's a general conversational or RAG query (e.g., 'What are the products?', 'Tell me about orders'), return 'rag_query'.";
+                $prompt = "Identify the intent of the command: '$command' for a $agentContext. " .
+                          "Return only the intent as a string in 'action_entity' format for CRUD actions " .
+                          "(e.g., 'create_member', 'read_member', 'update_order', 'delete_product'), " .
+                          "where 'action' is 'create', 'read', 'update', or 'delete', and 'entity' is the target (e.g., 'member', 'product'). " .
+                          "Use 'read_entity' for specific retrieval requests (e.g., 'Show member with id 1' → 'read_member'). " .
+                          "For general conversational or RAG queries (e.g., 'What are the members?'), return 'rag_query'. " .
+                          "Do not include prefixes like 'The intent is' or punctuation.";
+
                 $response = $this->client->chat()->create([
                     'model' => 'gpt-4o-mini',
                     'messages' => [
