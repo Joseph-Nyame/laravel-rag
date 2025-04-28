@@ -101,4 +101,25 @@ class QdrantRepository implements QdrantRepositoryInterface
             throw $e;
         }
     }
+
+    public function fetchPoint(string $collection): ?array{
+        try {
+            $response = Http::post("{$this->vectorDbUrl}/collections/{$collection}/points/scroll", [
+                'limit' => 1,
+                'with_payload' => true,
+                'with_vector' => false,
+            ]);
+
+            if ($response->successful()) {
+                $points = $response->json()['result']['points'] ?? [];
+                return !empty($points) ? $points[0] : null;
+            }
+        } catch (\Exception $e) {
+            Log::error('Failed to fetch Qdrant point', [
+                'collection' => $collection,
+                'error' => $e->getMessage(),
+            ]);
+        }
+        return null;
+    }
 }

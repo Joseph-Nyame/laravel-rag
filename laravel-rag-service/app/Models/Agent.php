@@ -12,4 +12,9 @@ class Agent extends Model
     {
         return $this->belongsTo(User::class);
     }
+
+    public function structure()
+    {
+        return $this->hasOne(Structure::class);
+    }
 }
