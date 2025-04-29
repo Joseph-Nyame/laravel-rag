@@ -9,4 +9,6 @@ interface QdrantRepositoryInterface
     public function upsertPoints(string $collection, array $points): bool;
 
     public function deletePoint(string $collection, string $pointId): bool;
+
+    public function fetchPoint(string $collection): ?array;
 }

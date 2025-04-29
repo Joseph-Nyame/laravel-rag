@@ -18,6 +18,8 @@ The development of Laravel RAG Service is planned in three stages, each adding p
         Analyze query patterns to provide trends and recommendations within your application.
         Offer system analysis support to optimize performance and suggest improvements.
         Example: Identify frequently asked questions to recommend new features or highlight underperforming content.
+    Agent to Agent 
+        Connect multiple aganet in  your app to produce a broad scope of anaylsis
 
 Features
 
