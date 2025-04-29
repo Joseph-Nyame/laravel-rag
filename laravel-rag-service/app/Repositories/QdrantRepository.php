@@ -101,4 +101,107 @@ class QdrantRepository implements QdrantRepositoryInterface
             throw $e;
         }
     }
+
+    public function fetchPoint(string $collection): ?array
+    {
+        try {
+            $response = Http::post("{$this->vectorDbUrl}/collections/{$collection}/points/scroll", [
+                'limit' => 1,
+                'with_payload' => true,
+                'with_vector' => false,
+            ]);
+
+            if ($response->successful()) {
+                $points = $response->json()['result']['points'] ?? [];
+                return !empty($points) ? $points[0] : null;
+            }
+        } catch (\Exception $e) {
+            Log::error('Failed to fetch Qdrant point', [
+                'collection' => $collection,
+                'error' => $e->getMessage(),
+            ]);
+        }
+        return null;
+    }
+
+    public function insertPoint(string $collection, string $pointId, array $payload): bool
+    {
+        try {
+            if (!$this->checkCollection($collection)) {
+                throw new \Exception("Collection {$collection} does not exist.");
+            }
+
+            $point = [
+                'id' => $pointId,
+                'payload' => $payload,
+                // Assuming no vector is needed for metadata-only points
+            ];
+
+            $response = Http::put("{$this->vectorDbUrl}/collections/{$collection}/points?wait=true", [
+                'points' => [$point],
+            ]);
+
+            if ($response->failed() || $response->json('result.status') !== 'completed') {
+                Log::error('Failed to insert point', [
+                    'collection' => $collection,
+                    'point_id' => $pointId,
+                    'error' => $response->json('status.error', 'Unknown error'),
+                    'response' => $response->body(),
+                ]);
+                throw new \Exception("Failed to insert point {$pointId}.");
+            }
+
+            Log::info('Point inserted successfully', [
+                'collection' => $collection,
+                'point_id' => $pointId,
+            ]);
+            return true;
+        } catch (\Exception $e) {
+            Log::error("Insert point failed: {$e->getMessage()}", [
+                'collection' => $collection,
+                'point_id' => $pointId,
+            ]);
+            throw $e;
+        }
+    }
+
+    public function searchPoints(string $collection, array $filters, int $limit): array
+    {
+        try {
+            if (!$this->checkCollection($collection)) {
+                throw new \Exception("Collection {$collection} does not exist.");
+            }
+
+            $response = Http::post("{$this->vectorDbUrl}/collections/{$collection}/points/scroll", [
+                'filter' => $filters,
+                'limit' => $limit,
+                'with_payload' => true,
+                'with_vector' => false,
+            ]);
+
+            if ($response->failed()) {
+                Log::error('Failed to search points', [
+                    'collection' => $collection,
+                    'filters' => $filters,
+                    'error' => $response->json('status.error', 'Unknown error'),
+                    'response' => $response->body(),
+                ]);
+                throw new \Exception("Failed to search points in {$collection}.");
+            }
+
+            $points = $response->json()['result']['points'] ?? [];
+            Log::debug('Qdrant search results', [
+                'collection' => $collection,
+                'filters' => $filters,
+                'points_count' => count($points),
+            ]);
+            return $points;
+        } catch (\Exception $e) {
+            Log::error("Search points failed: {$e->getMessage()}", [
+                'collection' => $collection,
+                'filters' => $filters,
+            ]);
+            throw $e;
+        }
+    }
 }
