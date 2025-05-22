@@ -10,5 +10,5 @@ interface QdrantRepositoryInterface
 
     public function deletePoint(string $collection, string $pointId): bool;
 
-    public function fetchPoint(string $collection): ?array;
+    public function fetchPoint(string $collection, ?int $limit=null): ?array;
 }

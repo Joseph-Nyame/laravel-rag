@@ -102,26 +102,30 @@ class QdrantRepository implements QdrantRepositoryInterface
         }
     }
 
-    public function fetchPoint(string $collection): ?array
+    public function fetchPoint(string $collection, ?int $limit = null): array
     {
         try {
             $response = Http::post("{$this->vectorDbUrl}/collections/{$collection}/points/scroll", [
-                'limit' => 1,
+                'limit' => $limit ?? 1,
                 'with_payload' => true,
                 'with_vector' => false,
             ]);
 
             if ($response->successful()) {
                 $points = $response->json()['result']['points'] ?? [];
-                return !empty($points) ? $points[0] : null;
+                Log::debug('Fetched points from Qdrant', [
+                    'collection' => $collection,
+                    'points_count' => count($points),
+                ]);
+                return $points;
             }
         } catch (\Exception $e) {
-            Log::error('Failed to fetch Qdrant point', [
+            Log::error('Failed to fetch Qdrant points', [
                 'collection' => $collection,
                 'error' => $e->getMessage(),
             ]);
         }
-        return null;
+        return [];
     }
 
     public function insertPoint(string $collection, string $pointId, array $payload): bool
