@@ -24,7 +24,8 @@ class MultiAgentController extends Controller
             $multiAgent = $this->orchestrator->createMultiAgent($request->all());
             return response()->json([
                 'message' => 'Multi-agent created successfully',
-                'data' => $multiAgent->load('relations'),
+                'multiAgent'=>$multiAgent
+                
             ], 201);
         } catch (ValidationException $e) {
             return response()->json([

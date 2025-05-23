@@ -53,59 +53,26 @@ class MultiAgentOrchestrator
             throw ValidationException::withMessages(['name' => 'The name is already taken.']);
         }
 
-        // Use provided relations or auto-detect
-        $relations = $data['relations'] ?? $this->detectRelations($data['agent_ids']);
+        // // Use provided relations or auto-detect
+        // $relations = $data['relations'] ?? $this->detectRelations($data['agent_ids']);
 
-        if (empty($relations)) {
-            Log::error('Failed to detect relations for agents: ' . implode(',', $data['agent_ids']) . '. Check Qdrant data ingestion and payload structure.');
-            throw new ValidationException(
-                Validator::make([], [], ['relations' => 'Could not detect valid relations for the provided agents. Please provide manual relations or verify Qdrant data ingestion.'])
-            );
-        }
+        // if (empty($relations)) {
+        //     Log::error('Failed to detect relations for agents: ' . implode(',', $data['agent_ids']) . '. Check Qdrant data ingestion and payload structure.');
+        //     throw new ValidationException(
+        //         Validator::make([], [], ['relations' => 'Could not detect valid relations for the provided agents. Please provide manual relations or verify Qdrant data ingestion.'])
+        //     );
+        // }
 
-        if ($this->debug) {
-            Log::debug('Detected relations: ' . json_encode($relations));
-        }
+        // if ($this->debug) {
+        //     Log::debug('Detected relations: ' . json_encode($relations));
+        // }
 
         // Create multi-agent
         $multiAgent = MultiAgent::create([
             'name' => $name,
             'agent_ids' => $data['agent_ids'],
         ]);
-
-        // Store relations and dispatch detection jobs
-        foreach ($relations as $relation) {
-            $suggestion = $this->joinKeyDetector->detectJoinKeys(
-                $relation['source_agent_id'],
-                $relation['target_agent_id']
-            );
-
-            MultiAgentRelation::create([
-                'multi_agent_id' => $multiAgent->id,
-                'source_agent_id' => $relation['source_agent_id'],
-                'target_agent_id' => $relation['target_agent_id'],
-                'join_key' => $relation['join_key'],
-                'description' => $suggestion['description'] ?? 'Auto-detected relation',
-                'suggested_confidence' => $suggestion['confidence'] ?? 0.0,
-            ]);
-
-            DetectJoinKeysJob::dispatch(
-                $relation['source_agent_id'],
-                $relation['target_agent_id']
-            );
-        }
-
-        // Dispatch jobs for all agent pairs
-        $agentIds = $data['agent_ids'];
-        for ($i = 0; $i < count($agentIds); $i++) {
-            for ($j = 0; $j < count($agentIds); $j++) {
-                if ($i !== $j) {
-                    DetectJoinKeysJob::dispatch($agentIds[$i], $agentIds[$j]);
-                }
-            }
-        }
-
-        return $multiAgent->load('relations');
+        return $multiAgent;
     }
 
     protected function suggestName(array $agentIds): string
@@ -117,84 +84,84 @@ class MultiAgentOrchestrator
         return 'MultiAgent_' . $agentNames . '_' . now()->format('YmdHis');
     }
 
-    protected function detectRelations(array $agentIds): array
-    {
-        $n = count($agentIds);
-        $pairScores = [];
+    // protected function detectRelations(array $agentIds): array
+    // {
+    //     $n = count($agentIds);
+    //     $pairScores = [];
 
-        // Generate all possible pairs
-        for ($i = 0; $i < $n; $i++) {
-            for ($j = 0; $j < $n; $j++) {
-                if ($i !== $j) {
-                    $suggestion = $this->joinKeyDetector->detectJoinKeys($agentIds[$i], $agentIds[$j]);
-                    if ($suggestion && $suggestion['confidence'] > 0.75) {
-                        $pairScores[] = [
-                            'source' => $agentIds[$i],
-                            'target' => $agentIds[$j],
-                            'join_key' => $suggestion['join_key'],
-                            'confidence' => $suggestion['confidence'],
-                            'description' => $suggestion['description'],
-                        ];
-                    }
-                }
-            }
-        }
+    //     // Generate all possible pairs
+    //     for ($i = 0; $i < $n; $i++) {
+    //         for ($j = 0; $j < $n; $j++) {
+    //             if ($i !== $j) {
+    //                 $suggestion = $this->joinKeyDetector->detectJoinKeys($agentIds[$i], $agentIds[$j]);
+    //                 if ($suggestion && $suggestion['confidence'] > 0.75) {
+    //                     $pairScores[] = [
+    //                         'source' => $agentIds[$i],
+    //                         'target' => $agentIds[$j],
+    //                         'join_key' => $suggestion['join_key'],
+    //                         'confidence' => $suggestion['confidence'],
+    //                         'description' => $suggestion['description'],
+    //                     ];
+    //                 }
+    //             }
+    //         }
+    //     }
 
-        if (empty($pairScores)) {
-            Log::warning('No valid relations detected for agents: ' . implode(',', $agentIds));
-            return [];
-        }
+    //     if (empty($pairScores)) {
+    //         Log::warning('No valid relations detected for agents: ' . implode(',', $agentIds));
+    //         return [];
+    //     }
 
-        // Find the best chain
-        $bestChain = [];
-        $bestTotalConfidence = 0.0;
+    //     // Find the best chain
+    //     $bestChain = [];
+    //     $bestTotalConfidence = 0.0;
+        
+    //     foreach ($agentIds as $startAgent) {
+    //         $currentChain = [];
+    //         $usedAgents = [$startAgent];
+    //         $currentAgent = $startAgent;
+    //         $totalConfidence = 0.0;
 
-        foreach ($agentIds as $startAgent) {
-            $currentChain = [];
-            $usedAgents = [$startAgent];
-            $currentAgent = $startAgent;
-            $totalConfidence = 0.0;
+    //         for ($i = 0; $i < $n - 1; $i++) {
+    //             $bestPair = null;
+    //             $bestConfidence = 0.0;
 
-            for ($i = 0; $i < $n - 1; $i++) {
-                $bestPair = null;
-                $bestConfidence = 0.0;
+    //             foreach ($pairScores as $pair) {
+    //                 if ($pair['source'] === $currentAgent && !in_array($pair['target'], $usedAgents)) {
+    //                     if ($pair['confidence'] > $bestConfidence) {
+    //                         $bestPair = $pair;
+    //                         $bestConfidence = $pair['confidence'];
+    //                     }
+    //                 }
+    //             }
 
-                foreach ($pairScores as $pair) {
-                    if ($pair['source'] === $currentAgent && !in_array($pair['target'], $usedAgents)) {
-                        if ($pair['confidence'] > $bestConfidence) {
-                            $bestPair = $pair;
-                            $bestConfidence = $pair['confidence'];
-                        }
-                    }
-                }
+    //             if (!$bestPair) {
+    //                 break;
+    //             }
 
-                if (!$bestPair) {
-                    break;
-                }
+    //             $currentChain[] = [
+    //                 'source_agent_id' => $bestPair['source'],
+    //                 'target_agent_id' => $bestPair['target'],
+    //                 'join_key' => $bestPair['join_key'],
+    //                 'description' => $bestPair['description'],
+    //             ];
+    //             $totalConfidence += $bestConfidence;
+    //             $usedAgents[] = $bestPair['target'];
+    //             $currentAgent = $bestPair['target'];
+    //         }
 
-                $currentChain[] = [
-                    'source_agent_id' => $bestPair['source'],
-                    'target_agent_id' => $bestPair['target'],
-                    'join_key' => $bestPair['join_key'],
-                    'description' => $bestPair['description'],
-                ];
-                $totalConfidence += $bestConfidence;
-                $usedAgents[] = $bestPair['target'];
-                $currentAgent = $bestPair['target'];
-            }
+    //         if (!empty($currentChain) && $totalConfidence > $bestTotalConfidence) {
+    //             $bestChain = $currentChain;
+    //             $bestTotalConfidence = $totalConfidence;
+    //         }
+    //     }
 
-            if (!empty($currentChain) && $totalConfidence > $bestTotalConfidence) {
-                $bestChain = $currentChain;
-                $bestTotalConfidence = $totalConfidence;
-            }
-        }
+    //     if (empty($bestChain)) {
+    //         Log::warning('No valid chain found for agents: ' . implode(',', $agentIds));
+    //     } else if (count($bestChain) < $n - 1) {
+    //         Log::warning('Partial chain detected for agents: ' . implode(',', $agentIds) . ', relations: ' . json_encode($bestChain));
+    //     }
 
-        if (empty($bestChain)) {
-            Log::warning('No valid chain found for agents: ' . implode(',', $agentIds));
-        } else if (count($bestChain) < $n - 1) {
-            Log::warning('Partial chain detected for agents: ' . implode(',', $agentIds) . ', relations: ' . json_encode($bestChain));
-        }
-
-        return $bestChain;
-    }
+    //     return $bestChain;
+    // }
 }

@@ -38,12 +38,7 @@ class MultiAgentQueryController extends Controller
                 return response()->json(['message' => 'MultiAgent not found'], 404);
             }
 
-            // Placeholder for authorization logic:
-            // For now, we assume the user has permission.
-            // This will be refined later.
-            // Example: if ($multiAgent->user_id !== auth()->id()) {
-            // return response()->json(['message' => 'Unauthorized'], 403);
-            // }
+            
 
             $result = $this->multiAgentQueryService->process_query(
                 $multiAgent,

@@ -8,6 +8,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\AgentController;
 use App\Http\Controllers\AgentQueryController;
 use App\Http\Controllers\MultiAgentController;
+use App\Http\Controllers\MultiAgentQueryController;
 
 
 Route::post('/register', [AuthController::class, 'register']);
@@ -35,7 +36,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // /api/multi-agent/{name}/query
     
     Route::post('/agents/{agent}/query', [AgentQueryController::class, 'query'])->name('agents.query');
-    Route::post('/multi-agents/{multiAgentId}/query', [App\Http\Controllers\MultiAgentQueryController::class, 'query'])->name('multi-agents.query');
+    Route::post('/multi-agents/{multiAgentId}/query', [MultiAgentQueryController::class, 'query'])->name('multi-agents.query');
     // Route::post('/agents/{agent}/structures', [StructureController::class, 'store'])->name('structure.store');
     // Route::post('/agents/{agent}/structure', [StructureController::class, 'update'])->name('structure.update');
 
