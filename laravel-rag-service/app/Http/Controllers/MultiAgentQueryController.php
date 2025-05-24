@@ -8,12 +8,17 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 use App\Services\MultiAgentQueryService;
+use App\Services\MultiAgent\Orchestrator;
 
 class MultiAgentQueryController extends Controller
 {
     protected MultiAgentQueryService $multiAgentQueryService;
 
-    public function __construct(MultiAgentQueryService $multiAgentQueryService)
+    public function __construct(MultiAgentQueryService $multiAgentQueryService,
+    private Orchestrator $orchestrator,
+  
+    
+    )
     {
         $this->multiAgentQueryService = $multiAgentQueryService;
     }
@@ -46,7 +51,7 @@ class MultiAgentQueryController extends Controller
                 $validated['session_id'] ?? null
             );
 
-            return response()->json($result);
+            return response()->json($result['synthesized_response']);
 
         } catch (ValidationException $e) {
             return response()->json([
@@ -59,4 +64,32 @@ class MultiAgentQueryController extends Controller
             return response()->json(['message' => 'An unexpected error occurred'], 500);
         }
     }
+
+    public function advancedQuery(Request $request, $multiAgentId): JsonResponse
+{
+    try {
+        $validated = $request->validate([
+            'prompt' => 'required|string|max:1000',
+            'session_id' => 'nullable|string',
+            'strategy' => 'nullable|in:auto,direct,broadcast,chained',
+        ]);
+        
+        $multiAgent = MultiAgent::findOrFail($multiAgentId);
+        
+        $orchestrator = app(Orchestrator::class); 
+        $result = $orchestrator->executeQuery(
+            $multiAgent,
+            $validated['prompt'],
+            $validated['session_id'] ?? null,
+            $validated['strategy'] ?? 'auto'
+        );
+        
+        return response()->json($result);
+    } catch (\Exception $e) {
+        return response()->json([
+            'error' => 'Failed to process query.',
+            'message' => $e->getMessage(),
+        ], 500);
+    }
+}
 }
