@@ -10,10 +10,7 @@ The development of Laravel RAG Service is planned in three stages, each adding p
     Query Searches and Responses
         Core functionality to ingest data via API and answer natural language queries with context-aware responses.
         Example: Upload product manuals and ask, "How do I fix error 403?" to get precise answers.
-    Actionable Commands and Synchronization
-        Perform CRUD (Create, Read, Update, Delete) operations directly in the vector database (Qdrant).
-        Periodic synchronization between your application’s default database and the vector database to ensure data consistency.
-        Example: Update a document in your app’s database, and the vector database automatically reflects the change.
+
     Trends, Recommendations, and System Analysis
         Analyze query patterns to provide trends and recommendations within your application.
         Offer system analysis support to optimize performance and suggest improvements.
@@ -21,13 +18,7 @@ The development of Laravel RAG Service is planned in three stages, each adding p
     Agent to Agent 
         Connect multiple aganet in  your app to produce a broad scope of anaylsis
 
-Features
 
-    Simple API Integration: Send data and query it effortlessly with intuitive endpoints.
-    SaaS Architecture: Scalable, subscription-ready design with no need to manage embeddings or vector searches.
-    Customizable Workflows: Tailor data ingestion, querying, and synchronization to your app’s needs.
-    Actionable Intelligence: Perform CRUD operations and gain insights from trends and recommendations.
-    Developer-Friendly: Built with Laravel’s ecosystem for rapid setup and extensibility.
 
 Use Cases
 
