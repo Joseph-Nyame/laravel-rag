@@ -52,7 +52,7 @@ class AgentQueryController extends Controller
             // $agentContext = $agent->name . ' Agent';
             // $intent = $this->intentClass->identify($request->prompt, $agentContext);
             // $intent = trim($intent, '"\'');
-            //todo but with crud. check later
+            //todo bug with crud. check later
             // if ($intent === 'rag_query' || strpos($intent, 'read_') === 0) {
             //     // Handle RAG query or read_entity
                 // Log::info('Routing to RagService', ['intent' => $intent, 'prompt' => $request->prompt]);

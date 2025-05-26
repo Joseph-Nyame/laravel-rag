@@ -7,6 +7,10 @@
 /storage/pail
 /vendor
 /qdrant_storage
+sales.csv
+products.csv
+payment.csv
+READMEPROJECT.md
 .env
 .env.backup
 .env.production

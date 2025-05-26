@@ -7,6 +7,8 @@ use App\Http\Controllers\RagController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\AgentController;
 use App\Http\Controllers\AgentQueryController;
+use App\Http\Controllers\MultiAgentController;
+use App\Http\Controllers\MultiAgentQueryController;
 
 
 Route::post('/register', [AuthController::class, 'register']);
@@ -19,6 +21,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/agents', [AgentController::class, 'store']);
     Route::post('/rag/ingest/{agent}', [RagController::class, 'ingest']);
     // Route::post('/rag/query/{agent}', [RagController::class, 'query']);
+    Route::post('/multi-agents', [MultiAgentController::class, 'store']);
 
     // only for refining prompts or after reviewing logs or feedback.
     Route::post('/prompts/update', function (Request $request) {
@@ -29,8 +32,13 @@ Route::middleware('auth:sanctum')->group(function () {
         app(PromptManager::class)->updatePrompt($request->scenario, $request->prompt);
         return response()->json(['message' => 'Prompt updated']);
     });
+
+    // /api/multi-agent/{name}/query
     
     Route::post('/agents/{agent}/query', [AgentQueryController::class, 'query'])->name('agents.query');
+    // Route::post('/multi-agents/{multiAgentId}/query', [MultiAgentQueryController::class, 'query'])->name('multi-agents.query');
+    Route::post('/multi-agents/{multiAgentId}/query', [MultiAgentQueryController::class, 'advancedQuery'])->name('multi-agents.advanced.query');
+
     // Route::post('/agents/{agent}/structures', [StructureController::class, 'store'])->name('structure.store');
     // Route::post('/agents/{agent}/structure', [StructureController::class, 'update'])->name('structure.update');
 
